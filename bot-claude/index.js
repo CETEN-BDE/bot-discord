@@ -19,10 +19,10 @@ function determineRolesFromGoogleProfile(profile) {
   if (profile.emails && profile.emails[0]) {
     const email = profile.emails[0].value;
 
-    if (email.endsWith("@yourcompany.com")) {
+    if (email.endsWith("@telecomnancy.net")) {
       roles.push("admin");
     }
-    if (email.endsWith("@partner.com")) {
+    if (email.endsWith("@animest.net")) {
       roles.push("moderator");
     }
     roles.push("verified");
