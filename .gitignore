@@ -1,1 +1,3 @@
 bot/config.json
+bot-claude/.env
+bot-claude/client_secret*
