@@ -1,1 +1,3 @@
-bot/config.json
+ancien_bot/config.json
+bot/.env
+bot/client_secret*
