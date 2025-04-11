@@ -10,8 +10,7 @@ const express = require("express");
 const session = require("express-session");
 const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
-const fetch = require("node-fetch");
-const profile = require("dotenv").config();
+require("dotenv").config();
 
 // Define determineRolesFromGoogleProfile function before using it
 function determineRolesFromGoogleProfile(profile) {
