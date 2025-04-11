@@ -5,14 +5,16 @@ const session = require('express-session');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const fetch = require('node-fetch');
-require('dotenv').config();
+const profile = require('dotenv').config();
 
 // Initialize Discord client
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.GuildMessages
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildPresences
   ],
   partials: [Partials.Channel]
 });
