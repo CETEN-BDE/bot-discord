@@ -45,19 +45,6 @@ const client = new Client({
 // Express server for handling SSO
 const app = express();
 
-// Express middleware setup
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || "your-session-secret",
-    resave: false,
-    saveUninitialized: false,
-  })
-);
-app.use(passport.initialize());
-app.use(passport.session());
-
 // Configure Passport with Google OAuth 2.0 strategy
 passport.use(
   new GoogleStrategy(
@@ -89,34 +76,76 @@ passport.deserializeUser((user, done) => {
   done(null, user);
 });
 
+// Express middleware setup
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      httpOnly: true,
+    },
+    name: "discord.oauth2",
+  })
+);
+app.use(passport.initialize());
+app.use(passport.session());
+
 // Store Discord user ID to SSO identity mapping
 const userMappings = {};
 
-// Express routes for authentication
-app.get(
-  "/auth/login",
+// Update the login route to properly handle Discord IDs
+app.get("/auth/login", (req, res, next) => {
+  const { userId, guildId } = req.query;
+
+  if (!userId || !guildId) {
+    return res.status(400).send("Missing userId or guildId parameters");
+  }
+
+  // Store state in Google OAuth flow instead of session
+  const state = Buffer.from(
+    JSON.stringify({
+      discordUserId: userId,
+      guildId: guildId,
+    })
+  ).toString("base64");
+
   passport.authenticate("google", {
     scope: ["profile", "email"],
-  })
-);
+    state: state,
+  })(req, res, next);
+});
 
+// Update the callback route to include logging
 app.get(
   "/auth/callback",
   passport.authenticate("google", { failureRedirect: "/auth/failure" }),
   async (req, res) => {
     try {
       const userData = req.user;
-      const discordUserId = req.session.discordUserId;
-      const guildId = req.session.guildId;
+
+      // Decode state from OAuth flow
+      const stateData = JSON.parse(
+        Buffer.from(req.query.state, "base64").toString()
+      );
+      const discordUserId = stateData.discordUserId;
+      const guildId = stateData.guildId;
+
+      console.log("OAuth State Data:", stateData);
 
       if (!discordUserId || !guildId) {
+        console.error("Missing IDs in OAuth state");
         return res.status(400).send("Missing Discord user ID or guild ID.");
       }
 
       // Store the mapping
       userMappings[discordUserId] = {
-        ssoIdentity: userData.email, // or another unique identifier
-        roles: userData.roles || [], // Roles from SSO if available
+        ssoIdentity: userData.email,
+        roles: userData.roles || [],
       };
 
       // Assign roles based on SSO data
@@ -186,9 +215,10 @@ client.on("interactionCreate", async (interaction) => {
 
   if (interaction.commandName === "verify") {
     const authUrl = `${process.env.APP_URL}/auth/login?userId=${interaction.user.id}&guildId=${interaction.guildId}`;
+    console.log("Generated Auth URL:", authUrl);
     await interaction.reply({
       content: `Please authenticate using this link: ${authUrl}`,
-      ephemeral: true, // Only visible to the user who triggered the command
+      flags: 64, // This replaces ephemeral: true
     });
   }
 });
